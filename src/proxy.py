@@ -18,9 +18,18 @@ class ReverseProxy(http.server.BaseHTTPRequestHandler):
     def forward_request(self, method):
         """Forwards the request to the target server and sends back the response."""
         try:
+            print(f"\n[🔹 FORWARDING {method} REQUEST]: {self.path}")
+
+            # Forward the request to the backend
             conn = http.client.HTTPConnection(TARGET_HOST, TARGET_PORT)
             conn.request(method, self.path, headers=self.headers)
             response = conn.getresponse()
+
+            # Log response details
+            print(f"[✅ BACKEND RESPONSE]: {response.status} {response.reason}")
+            print("[🔹 RESPONSE HEADERS]:")
+            for header, value in response.getheaders():
+                print(f"  {header}: {value}")
 
             # Send response back to the client
             self.send_response(response.status)
@@ -28,13 +37,16 @@ class ReverseProxy(http.server.BaseHTTPRequestHandler):
                 if header.lower() != "connection":  # Avoid keep-alive issues
                     self.send_header(header, value)
             self.end_headers()
+
+            # Send the response body without logging it
             self.wfile.write(response.read())
 
             conn.close()
         except Exception as e:
+            print(f"[❌ ERROR]: {str(e)}")
             self.send_error(502, f"Proxy error: {str(e)}")
 
 if __name__ == "__main__":
     with socketserver.ThreadingTCPServer((LISTEN_HOST, LISTEN_PORT), ReverseProxy) as server:
-        print(f"Proxy running on {LISTEN_HOST}:{LISTEN_PORT} → Forwarding to {TARGET_HOST}:{TARGET_PORT}")
+        print(f"🔵 Proxy running on {LISTEN_HOST}:{LISTEN_PORT} → Forwarding to {TARGET_HOST}:{TARGET_PORT}")
         server.serve_forever()
